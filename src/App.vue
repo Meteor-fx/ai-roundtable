@@ -74,7 +74,7 @@
       </div>
     </div>
 
-    <!-- 聊天抽屉：比全透明稍微暗一点，保证阅读体验的磨砂玻璃 -->
+    <!-- 聊天框：半透明磨砂玻璃 -->
     <div class="chat-drawer" :style="{ height: chatHeight + 'vh' }">
       <div class="drawer-handle" @click.stop="drawerExpanded = !drawerExpanded">
         <div class="handle-bar"></div>
@@ -117,15 +117,15 @@
             <div class="summary-head">📋 圆桌纪要</div>
             <pre class="summary-body">{{ msg.content }}</pre>
           </div>
-          <!-- 访客名字和头像修复 -->
+          <!-- 完全使用原版结构，不做任何改动 -->
           <div v-else-if="msg.speaker !== 'user'" class="msg-row left">
             <div class="avatar-wrapper">
-              <img :src="msg.isVisitor ? msg.speakerAvatar : getAvatar(msg.speaker)" class="avatar" @click.stop="mentionCharacter(getChar(msg.speaker))" />
+              <img :src="getAvatar(msg.speaker)" class="avatar" @click.stop="mentionCharacter(getChar(msg.speaker))" />
               <div v-if="msg.isVisitor" class="visitor-badge">来访</div>
             </div>
             <div class="msg-main">
-              <div class="nick" :style="{ color: msg.isVisitor ? msg.speakerColor : getColor(msg.speaker) }">
-                {{ msg.isVisitor ? msg.speakerName : getName(msg.speaker) }}
+              <div class="nick" :style="{ color: getColor(msg.speaker) }">
+                {{ getName(msg.speaker) }}
                 <span v-if="msg.isVisitor" class="visitor-tag">🚪 访客</span>
               </div>
               <div class="bubble ai" :class="{ 'bubble-muted': msg.isFallback, 'visitor-bubble-style': msg.isVisitor }">
@@ -142,15 +142,14 @@
           </div>
         </template>
 
-        <!-- 访客打字状态 -->
         <div v-if="typingId" class="msg-row left">
           <div class="avatar-wrapper">
-            <img :src="typingId === 'visitor' ? incomingVisitor?.avatar : getAvatar(typingId)" class="avatar" />
+            <img :src="getAvatar(typingId)" class="avatar" />
             <div v-if="isVisitorTyping" class="visitor-badge">来访</div>
           </div>
           <div class="msg-main">
-            <div class="nick" :style="{ color: typingId === 'visitor' ? incomingVisitor?.color : getColor(typingId) }">
-              {{ typingId === 'visitor' ? incomingVisitor?.name : getName(typingId) }}
+            <div class="nick" :style="{ color: getColor(typingId) }">
+              {{ getName(typingId) }}
               <span v-if="isVisitorTyping" class="visitor-tag">🚪 访客</span>
             </div>
             <div class="bubble ai typing" :class="{ 'visitor-bubble-style': isVisitorTyping }">
@@ -166,7 +165,7 @@
           <span class="x" @click.stop="userMention = null; mentionedCharId = ''">×</span>
         </div>
         <div class="input-row">
-          <!-- 输入法回车修复 -->
+          <!-- 修复输入法回车 -->
           <input v-model="userMessage" class="chat-input"
                  :placeholder="inputPlaceholder"
                  @keydown.enter="onEnter"
@@ -385,6 +384,7 @@ const scenarios = {
   }
 }
 
+// --- 热搜换一换 ---
 const allHotSearchPool = [
   { title: 'AI 大模型突破新能力', tag: '科技', tagColor: '#9B59B6' },
   { title: '大学生熬夜猝死引关注', tag: '社会', tagColor: '#FF6B6B' },
@@ -411,6 +411,7 @@ const refreshHotSearch = () => {
   hotSearchList.value = shuffled.slice(0, 8)
 }
 refreshHotSearch()
+// -----------------
 
 const characters = ref([
   { id: 'che', name: '小澈', personality: '理性分析', avatar: cheImg, color: '#4A90D9', emotion: 20,
@@ -520,7 +521,6 @@ const topic = ref('')
 const messages = ref([])
 const isDiscussing = ref(false)
 const isPaused = ref(false)
-const isSummarizing = ref(false) 
 const currentSpeakerId = ref('')
 const typingId = ref('')
 const isVisitorTyping = ref(false) 
@@ -557,7 +557,6 @@ const discussPhase = computed(() => {
 const screenW = ref(window.innerWidth)
 const screenH = ref(window.innerHeight)
 const stageH = computed(() => screenH.value * 0.58)
-const STAGE_TOP = 70 
 
 const homes = {
   che: { x: 0.15, y: 0.30 }, man: { x: 0.80, y: 0.25 }, tiao: { x: 0.85, y: 0.45 },
@@ -668,7 +667,7 @@ const physicsLoop = (timestamp) => {
 const onMousemove = (e) => {
   lastUserActivity.value = Date.now()
   idlePrompted.value = false
-  const mx = e.clientX, my = e.clientY - STAGE_TOP
+  const mx = e.clientX, my = e.clientY
   Object.values(dollStates).forEach(s => {
     if (s.mood === 'speaking' || s.mood === 'approach') return
     const dx = s.px - mx, dy = s.py - my
@@ -689,7 +688,7 @@ const onClick = (e) => {
   if (idleDolls.length === 0) return
   const [id, s] = idleDolls[Math.floor(Math.random() * idleDolls.length)]
   s.tx = e.clientX / screenW.value
-  s.ty = (e.clientY - STAGE_TOP) / stageH.value
+  s.ty = e.clientY / stageH.value
   s.mood = 'chase'
   setTimeout(() => {
     if (s.mood === 'chase') {
@@ -778,7 +777,7 @@ const currentScenario = computed(() => scenarios[currentScenarioKey.value])
 const panelTitle = computed(() => panelTitles[activeTab.value] || '')
 const apiStatusText = computed(() => {
   if (apiStatus.value === 'ok') return '在线'
-  if (apiStatus.value === 'calling') return `思考中...`
+  if (apiStatus.value === 'calling') return `思考(${apiCallCount.value})`
   return '异常'
 })
 const inputPlaceholder = computed(() => {
@@ -883,8 +882,6 @@ const speakOnce = async (charId, history, sceneName, options = {}) => {
       isVisitor: options.isVisitor || false 
     })
     history.push({ role: 'user', content: `${char.name}：${reply}` })
-    
-    if (history.length > 40) history.splice(0, history.length - 40)
 
     dollBubbles.value[charId] = reply.length > 24 ? reply.slice(0, 24) + '…' : reply
     setTimeout(() => {
@@ -893,7 +890,7 @@ const speakOnce = async (charId, history, sceneName, options = {}) => {
 
     char.emotion = Math.min(100, char.emotion + 8 + Math.random() * 12)
 
-    // 强制自动追踪聊天底部
+    // 强制滚动到底部
     nextTick(() => {
       if (chatArea.value) chatArea.value.scrollTop = chatArea.value.scrollHeight
     })
@@ -912,14 +909,12 @@ const speakOnce = async (charId, history, sceneName, options = {}) => {
 }
 
 const finalizeSummary = async () => {
-  if (isSummarizing.value) return
   const realMessages = messages.value.filter(m => !m.isFallback && m.speaker !== 'system' && m.speaker !== 'summary')
   if (realMessages.length < 4) {
     messages.value.push({ speaker: 'system', content: '📋 有效发言太少，跳过纪要生成', time: nowTime() })
     return
   }
 
-  isSummarizing.value = true
   messages.value.push({ speaker: 'system', content: '📋 正在生成圆桌纪要…', time: nowTime() })
   nextTick(() => {
     if (chatArea.value) chatArea.value.scrollTop = chatArea.value.scrollHeight
@@ -939,8 +934,6 @@ const finalizeSummary = async () => {
     const idx = messages.value.findIndex(m => m.content && m.content.includes('正在生成圆桌纪要'))
     if (idx >= 0) messages.value.splice(idx, 1)
     messages.value.push({ speaker: 'system', content: '📋 纪要生成失败', time: nowTime() })
-  } finally {
-    isSummarizing.value = false
   }
 
   nextTick(() => {
@@ -950,22 +943,18 @@ const finalizeSummary = async () => {
 
 const startDiscussion = async () => {
   if (!topic.value.trim()) return alert('请先输入话题！')
-  if (isDiscussing.value) {
-    stopFlag.value = true
-    isPaused.value = false
-    await sleep(500)
-  }
+  if (isDiscussing.value) return
 
   const detected = detectScenario(topic.value)
   currentScenarioKey.value = detected
-  lastUserActivity.value = Date.now()
-  idlePrompted.value = false
 
   isDiscussing.value = true
   isPaused.value = false
   stopFlag.value = false
+  lastUserActivity.value = Date.now()
+  idlePrompted.value = false
   
-  // 保留访客及串门记录
+  // 保留串门记录
   const preservedMsgs = messages.value.filter(m => m.isVisitor || (m.speaker === 'system' && (m.content.includes('串门') || m.content.includes('来访'))))
   messages.value = preservedMsgs
   messages.value.push({ speaker: 'system', content: `--- 开启新话题：${topic.value} ---`, time: nowTime() })
@@ -1014,7 +1003,7 @@ const startDiscussion = async () => {
         } else {
           const prev = getPrevAIMessage()
           if (prev) {
-            const prevName = prev.isVisitor ? prev.speakerName : getName(prev.speaker)
+            const prevName = getName(prev.speaker)
             extraContext += `【你要回应的对象】上一位发言的是"${prevName}"，ta 说：\n"${prev.content}"\n`
             extraContext += `【你的任务】必须针对 ${prevName} 的这段话做出反应，**不能自说自话**。\n`
           }
@@ -1102,6 +1091,7 @@ const stopDiscussion = async () => {
   saveHistory()
 }
 
+// 回车修复
 const onEnter = (e) => {
   if (e.isComposing) return
   userSpeak()
@@ -1116,10 +1106,6 @@ const userSpeak = async () => {
   lastUserActivity.value = Date.now()
   idlePrompted.value = false
 
-  nextTick(() => {
-    if (chatArea.value) chatArea.value.scrollTop = chatArea.value.scrollHeight
-  })
-
   if (isDiscussing.value) {
     stopFlag.value = true
     isPaused.value = false
@@ -1132,6 +1118,7 @@ const userSpeak = async () => {
     typingId.value = ''
     currentSpeakerId.value = ''
     stopFlag.value = false
+    saveHistory()
   }
 
   const responders = [...characters.value]
@@ -1148,7 +1135,7 @@ const userSpeak = async () => {
     if (m.speaker === 'user') {
       history.push({ role: 'user', content: `用户：${m.content}` })
     } else if (m.speaker !== 'system' && m.speaker !== 'summary' && !m.isFallback) {
-      history.push({ role: 'user', content: `${m.isVisitor ? m.speakerName : getName(m.speaker)}：${m.content}` })
+      history.push({ role: 'user', content: `${getName(m.speaker)}：${m.content}` })
     }
   }
 
@@ -1177,7 +1164,7 @@ const userSpeak = async () => {
       } else {
         const prev = getPrevAIMessage()
         if (prev && prev.speaker !== 'user') {
-          const prevName = prev.isVisitor ? prev.speakerName : getName(prev.speaker)
+          const prevName = getName(prev.speaker)
           extraContext += `【上一位回应者】"${prevName}"刚刚说了：\n"${prev.content}"\n`
           extraContext += `【你的任务】在 ${prevName} 的基础上补充或反驳。必须围绕用户刚才说的话，不要跑题。\n`
         } else {
@@ -1265,6 +1252,7 @@ const greetUser = async () => {
 
 const channel = ref(null)
 
+// 彻底剥离 stopFlag 的串门对话（完全保持原版）
 const runGuestConversation = async (data) => {
   try {
     isDiscussing.value = true
@@ -1305,8 +1293,8 @@ const runGuestConversation = async (data) => {
       typingId.value = ''
       await sleep(1200)
 
-      typingId.value = 'visitor' 
-      currentSpeakerId.value = ''
+      typingId.value = 'che'
+      currentSpeakerId.value = 'che'
       isVisitorTyping.value = true
 
       let promptVisitor = round === 0 
@@ -1315,15 +1303,7 @@ const runGuestConversation = async (data) => {
 
       const r2 = await callAI('che', history, currentScenario.value.name, { extraContext: promptVisitor })
       if (r2.ok) {
-        messages.value.push({ 
-          speaker: 'visitor', 
-          speakerName: data.visitorName,
-          speakerAvatar: data.visitorAvatar,
-          speakerColor: data.visitorColor,
-          content: r2.content, 
-          time: nowTime(), 
-          isVisitor: true 
-        })
+        messages.value.push({ speaker: 'che', content: r2.content, time: nowTime(), isVisitor: true })
         history.push({ role: 'user', content: `${data.visitorName}：${r2.content}` })
         apiCallCount.value++
         nextTick(() => { if (chatArea.value) chatArea.value.scrollTop = chatArea.value.scrollHeight })
@@ -1338,7 +1318,7 @@ const runGuestConversation = async (data) => {
     setTimeout(() => {
       if (!incomingVisitor.value) return
       if (channel.value) {
-        const backMsgs = messages.value.slice(-10).map(m => `${m.isVisitor ? m.speakerName : getName(m.speaker)}: ${m.content}`).join('\n')
+        const backMsgs = messages.value.slice(-10).map(m => `${getName(m.speaker)}: ${m.content}`).join('\n')
         channel.value.postMessage({
           type: 'visit-back',
           from: '另一个圆桌的朋友',
@@ -1379,7 +1359,7 @@ const runReturnConversation = async (data) => {
   s.mood = 'idle'
   s.tx = homes[envoy.id].x
   s.ty = homes[envoy.id].y
-  visitingCharId.value = null 
+  visitingCharId.value = null
 
   messages.value.push({
     speaker: 'system',
@@ -1454,7 +1434,7 @@ const runReturnConversation = async (data) => {
 
 const visitNeighbor = () => {
   if (!channel.value) {
-    messages.value.push({ speaker: 'system', content: '🚪 串门通道未开启（需多开浏览器标签页）', time: nowTime() })
+    messages.value.push({ speaker: 'system', content: '🚪 串门通道未开启', time: nowTime() })
     return
   }
 
@@ -1477,9 +1457,8 @@ const visitNeighbor = () => {
     content: `🚪 ${envoy.name} 出发去对门串门了…`,
     time: nowTime()
   })
-  nextTick(() => { if (chatArea.value) chatArea.value.scrollTop = chatArea.value.scrollHeight })
 
-  const recentMsgs = messages.value.slice(-5).map(m => `${m.isVisitor ? m.speakerName : getName(m.speaker)}: ${m.content}`).join('\n')
+  const recentMsgs = messages.value.slice(-5).map(m => `${getName(m.speaker)}: ${m.content}`).join('\n')
 
   channel.value.postMessage({
     type: 'visit',
@@ -1494,15 +1473,9 @@ const visitNeighbor = () => {
   })
 }
 
-let lastSavedHash = '' 
 const saveHistory = () => {
-  const realMessages = messages.value.filter(m => m.speaker !== 'system' && !m.isFallback && m.speaker !== 'summary')
+  const realMessages = messages.value.filter(m => m.speaker !== 'system' && !m.isFallback)
   if (realMessages.length < 3) return
-  
-  const hash = realMessages.map(m => m.speaker + m.content).join('|').slice(0, 200)
-  if (hash === lastSavedHash) return
-  lastSavedHash = hash
-
   discussionHistory.value.unshift({
     topic: topic.value || '(打招呼)',
     sceneName: currentScenario.value.name,
@@ -1510,7 +1483,7 @@ const saveHistory = () => {
     count: realMessages.length,
     preview: realMessages
       .slice(0, 3)
-      .map(m => `[${m.isVisitor ? m.speakerName : getName(m.speaker)}] ${m.content}`)
+      .map(m => `[${getName(m.speaker)}] ${m.content}`)
       .join(' / ')
       .slice(0, 130) + '…',
     time: new Date().toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }),
@@ -1520,12 +1493,6 @@ const saveHistory = () => {
 }
 
 const loadHistory = (h) => {
-  stopFlag.value = true
-  isDiscussing.value = false
-  isPaused.value = false
-  typingId.value = ''
-  currentSpeakerId.value = ''
-
   activeTab.value = 'chat'
   menuOpen.value = false
   topic.value = h.topic
@@ -1570,11 +1537,9 @@ onMounted(() => {
   }, 3000)
 
   careTimer = setInterval(async () => {
-    if (isDiscussing.value || isPaused.value || isSummarizing.value) return 
     const idleTime = Date.now() - lastUserActivity.value
-    if (idleTime > 45000 && !idlePrompted.value) {
+    if (idleTime > 30000 && !idlePrompted.value && !isDiscussing.value) {
       idlePrompted.value = true
-      lastUserActivity.value = Date.now()
       const ids = ['man', 'mo', 'che', 'shan']
       const id = ids[Math.floor(Math.random() * ids.length)]
       approachUser(id)
@@ -1816,7 +1781,7 @@ onUnmounted(() => {
   }
 }
 
-/* 聊天抽屉：适度透明，磨砂玻璃 (0.55) */
+/* 聊天抽屉：半透明玻璃效果 */
 .chat-drawer { 
   position: absolute; 
   left: 50%; 
@@ -1824,7 +1789,7 @@ onUnmounted(() => {
   transform: translateX(-50%); 
   width: calc(100% - 44px); 
   max-width: 820px; 
-  background: rgba(15, 15, 25, 0.55); /* 调整为 0.55，比原来 0.6 稍微透明一点 */
+  background: rgba(15, 15, 25, 0.55); /* 调整这里的不透明度 */
   backdrop-filter: blur(20px) saturate(160%); 
   -webkit-backdrop-filter: blur(20px) saturate(160%); 
   border: 1px solid rgba(255,255,255,0.15); 
@@ -2021,6 +1986,7 @@ onUnmounted(() => {
 .about li { font-size: 13px; color: #ccc; line-height: 1.8; }
 .esc-tip { margin-top: 20px; padding: 10px 14px; background: rgba(74,144,217,0.1); border-radius: 8px; color: #7fb2e5 !important; font-size: 12px !important; }
 
+/* --- 原封不动的移动端样式 --- */
 @media (max-width: 768px) {
   .topbar { padding: 8px 12px; }
   .top-left, .top-right { gap: 8px; }
