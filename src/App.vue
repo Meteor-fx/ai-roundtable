@@ -117,15 +117,15 @@
             <div class="summary-head">📋 圆桌纪要</div>
             <pre class="summary-body">{{ msg.content }}</pre>
           </div>
-          <!-- 完全使用原版结构，不做任何改动 -->
+          <!-- 兼容访客名字和头像 -->
           <div v-else-if="msg.speaker !== 'user'" class="msg-row left">
             <div class="avatar-wrapper">
-              <img :src="getAvatar(msg.speaker)" class="avatar" @click.stop="mentionCharacter(getChar(msg.speaker))" />
+              <img :src="msg.isVisitor ? msg.speakerAvatar : getAvatar(msg.speaker)" class="avatar" @click.stop="mentionCharacter(getChar(msg.speaker))" />
               <div v-if="msg.isVisitor" class="visitor-badge">来访</div>
             </div>
             <div class="msg-main">
-              <div class="nick" :style="{ color: getColor(msg.speaker) }">
-                {{ getName(msg.speaker) }}
+              <div class="nick" :style="{ color: msg.isVisitor ? msg.speakerColor : getColor(msg.speaker) }">
+                {{ msg.isVisitor ? msg.speakerName : getName(msg.speaker) }}
                 <span v-if="msg.isVisitor" class="visitor-tag">🚪 访客</span>
               </div>
               <div class="bubble ai" :class="{ 'bubble-muted': msg.isFallback, 'visitor-bubble-style': msg.isVisitor }">
@@ -165,7 +165,6 @@
           <span class="x" @click.stop="userMention = null; mentionedCharId = ''">×</span>
         </div>
         <div class="input-row">
-          <!-- 修复输入法回车 -->
           <input v-model="userMessage" class="chat-input"
                  :placeholder="inputPlaceholder"
                  @keydown.enter="onEnter"
@@ -384,7 +383,6 @@ const scenarios = {
   }
 }
 
-// --- 热搜换一换 ---
 const allHotSearchPool = [
   { title: 'AI 大模型突破新能力', tag: '科技', tagColor: '#9B59B6' },
   { title: '大学生熬夜猝死引关注', tag: '社会', tagColor: '#FF6B6B' },
@@ -411,7 +409,6 @@ const refreshHotSearch = () => {
   hotSearchList.value = shuffled.slice(0, 8)
 }
 refreshHotSearch()
-// -----------------
 
 const characters = ref([
   { id: 'che', name: '小澈', personality: '理性分析', avatar: cheImg, color: '#4A90D9', emotion: 20,
@@ -521,6 +518,7 @@ const topic = ref('')
 const messages = ref([])
 const isDiscussing = ref(false)
 const isPaused = ref(false)
+const isSummarizing = ref(false) 
 const currentSpeakerId = ref('')
 const typingId = ref('')
 const isVisitorTyping = ref(false) 
@@ -943,16 +941,20 @@ const finalizeSummary = async () => {
 
 const startDiscussion = async () => {
   if (!topic.value.trim()) return alert('请先输入话题！')
-  if (isDiscussing.value) return
+  if (isDiscussing.value) {
+    stopFlag.value = true
+    isPaused.value = false
+    await sleep(500)
+  }
 
   const detected = detectScenario(topic.value)
   currentScenarioKey.value = detected
+  lastUserActivity.value = Date.now()
+  idlePrompted.value = false
 
   isDiscussing.value = true
   isPaused.value = false
   stopFlag.value = false
-  lastUserActivity.value = Date.now()
-  idlePrompted.value = false
   
   // 保留串门记录
   const preservedMsgs = messages.value.filter(m => m.isVisitor || (m.speaker === 'system' && (m.content.includes('串门') || m.content.includes('来访'))))
@@ -1091,7 +1093,6 @@ const stopDiscussion = async () => {
   saveHistory()
 }
 
-// 回车修复
 const onEnter = (e) => {
   if (e.isComposing) return
   userSpeak()
@@ -1252,7 +1253,6 @@ const greetUser = async () => {
 
 const channel = ref(null)
 
-// 彻底剥离 stopFlag 的串门对话（完全保持原版）
 const runGuestConversation = async (data) => {
   try {
     isDiscussing.value = true
@@ -1293,7 +1293,7 @@ const runGuestConversation = async (data) => {
       typingId.value = ''
       await sleep(1200)
 
-      typingId.value = 'che'
+      typingId.value = 'che' 
       currentSpeakerId.value = 'che'
       isVisitorTyping.value = true
 
@@ -1303,7 +1303,15 @@ const runGuestConversation = async (data) => {
 
       const r2 = await callAI('che', history, currentScenario.value.name, { extraContext: promptVisitor })
       if (r2.ok) {
-        messages.value.push({ speaker: 'che', content: r2.content, time: nowTime(), isVisitor: true })
+        messages.value.push({ 
+          speaker: 'che', 
+          content: r2.content, 
+          time: nowTime(), 
+          isVisitor: true,
+          speakerName: data.visitorName,
+          speakerColor: data.visitorColor,
+          speakerAvatar: data.visitorAvatar
+        })
         history.push({ role: 'user', content: `${data.visitorName}：${r2.content}` })
         apiCallCount.value++
         nextTick(() => { if (chatArea.value) chatArea.value.scrollTop = chatArea.value.scrollHeight })
@@ -1318,7 +1326,7 @@ const runGuestConversation = async (data) => {
     setTimeout(() => {
       if (!incomingVisitor.value) return
       if (channel.value) {
-        const backMsgs = messages.value.slice(-10).map(m => `${getName(m.speaker)}: ${m.content}`).join('\n')
+        const backMsgs = messages.value.slice(-10).map(m => `${m.isVisitor ? m.speakerName : getName(m.speaker)}: ${m.content}`).join('\n')
         channel.value.postMessage({
           type: 'visit-back',
           from: '另一个圆桌的朋友',
@@ -1789,7 +1797,7 @@ onUnmounted(() => {
   transform: translateX(-50%); 
   width: calc(100% - 44px); 
   max-width: 820px; 
-  background: rgba(15, 15, 25, 0.55); /* 调整这里的不透明度 */
+  background: rgba(15, 15, 25, 0.55);
   backdrop-filter: blur(20px) saturate(160%); 
   -webkit-backdrop-filter: blur(20px) saturate(160%); 
   border: 1px solid rgba(255,255,255,0.15); 
@@ -1986,7 +1994,6 @@ onUnmounted(() => {
 .about li { font-size: 13px; color: #ccc; line-height: 1.8; }
 .esc-tip { margin-top: 20px; padding: 10px 14px; background: rgba(74,144,217,0.1); border-radius: 8px; color: #7fb2e5 !important; font-size: 12px !important; }
 
-/* --- 原封不动的移动端样式 --- */
 @media (max-width: 768px) {
   .topbar { padding: 8px 12px; }
   .top-left, .top-right { gap: 8px; }

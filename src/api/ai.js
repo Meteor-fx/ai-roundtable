@@ -1,7 +1,8 @@
 // src/api/ai.js
 const API_KEY = import.meta.env.VITE_ZHIPU_API_KEY
-// 直接写死官方地址，去掉本地/线上代理，彻底解决 400 报错
-const API_URL = 'https://open.bigmodel.cn/api/paas/v4/chat/completions'
+
+// 🔥 修改点：走 Vercel 代理路径，解决手机端跨域拦截
+const API_URL = '/api/zhipu/chat/completions'
 const MODEL = 'glm-4-flash'
 
 console.log(
@@ -76,7 +77,6 @@ function cleanReply(text) {
 }
 
 export async function callAI(characterId, history, sceneName, options = {}) {
-  const retryCount = options.retryCount || 0
   const temperature = options.temperature !== undefined ? options.temperature : 1.0 
   const extraContext = options.extraContext || null
 
@@ -92,7 +92,7 @@ export async function callAI(characterId, history, sceneName, options = {}) {
     systemPrompt += `\n\n${extraContext}`
   }
 
-  // 🔥 核心修复：严格限制历史记录只有最近的 10 条，防止 Token 超限导致 400 报错！
+  // 严格限制历史记录只有最近的 10 条，防止 Token 超限
   const recentHistory = history.slice(-10)
   
   const messages = [
@@ -114,7 +114,7 @@ export async function callAI(characterId, history, sceneName, options = {}) {
         model: MODEL,
         messages: messages,
         temperature: temperature,
-        max_tokens: 150, // 限制最大输出，节省 token
+        max_tokens: 150,
         top_p: 0.9
       }),
       signal: controller.signal
