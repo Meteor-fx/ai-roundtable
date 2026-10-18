@@ -74,7 +74,7 @@
       </div>
     </div>
 
-    <!-- 聊天抽屉：调整为高透玻璃效果 (0.55) -->
+    <!-- 聊天抽屉：比全透明稍微暗一点，保证阅读体验的磨砂玻璃 -->
     <div class="chat-drawer" :style="{ height: chatHeight + 'vh' }">
       <div class="drawer-handle" @click.stop="drawerExpanded = !drawerExpanded">
         <div class="handle-bar"></div>
@@ -117,7 +117,7 @@
             <div class="summary-head">📋 圆桌纪要</div>
             <pre class="summary-body">{{ msg.content }}</pre>
           </div>
-          <!-- 访客消息渲染 -->
+          <!-- 访客名字和头像修复 -->
           <div v-else-if="msg.speaker !== 'user'" class="msg-row left">
             <div class="avatar-wrapper">
               <img :src="msg.isVisitor ? msg.speakerAvatar : getAvatar(msg.speaker)" class="avatar" @click.stop="mentionCharacter(getChar(msg.speaker))" />
@@ -142,7 +142,7 @@
           </div>
         </template>
 
-        <!-- 访客正在输入时的显示 -->
+        <!-- 访客打字状态 -->
         <div v-if="typingId" class="msg-row left">
           <div class="avatar-wrapper">
             <img :src="typingId === 'visitor' ? incomingVisitor?.avatar : getAvatar(typingId)" class="avatar" />
@@ -410,7 +410,7 @@ const refreshHotSearch = () => {
   const shuffled = [...allHotSearchPool].sort(() => Math.random() - 0.5)
   hotSearchList.value = shuffled.slice(0, 8)
 }
-refreshHotSearch() // 初始化
+refreshHotSearch()
 
 const characters = ref([
   { id: 'che', name: '小澈', personality: '理性分析', avatar: cheImg, color: '#4A90D9', emotion: 20,
@@ -893,7 +893,7 @@ const speakOnce = async (charId, history, sceneName, options = {}) => {
 
     char.emotion = Math.min(100, char.emotion + 8 + Math.random() * 12)
 
-    // 强制自动滚动到底部
+    // 强制自动追踪聊天底部
     nextTick(() => {
       if (chatArea.value) chatArea.value.scrollTop = chatArea.value.scrollHeight
     })
@@ -965,6 +965,7 @@ const startDiscussion = async () => {
   isPaused.value = false
   stopFlag.value = false
   
+  // 保留访客及串门记录
   const preservedMsgs = messages.value.filter(m => m.isVisitor || (m.speaker === 'system' && (m.content.includes('串门') || m.content.includes('来访'))))
   messages.value = preservedMsgs
   messages.value.push({ speaker: 'system', content: `--- 开启新话题：${topic.value} ---`, time: nowTime() })
@@ -1115,7 +1116,6 @@ const userSpeak = async () => {
   lastUserActivity.value = Date.now()
   idlePrompted.value = false
 
-  // 强制自动滚动到底部
   nextTick(() => {
     if (chatArea.value) chatArea.value.scrollTop = chatArea.value.scrollHeight
   })
@@ -1824,7 +1824,7 @@ onUnmounted(() => {
   transform: translateX(-50%); 
   width: calc(100% - 44px); 
   max-width: 820px; 
-  background: rgba(15, 15, 25, 0.55); /* 0.55 透明度的玻璃效果 */
+  background: rgba(15, 15, 25, 0.55); /* 调整为 0.55，比原来 0.6 稍微透明一点 */
   backdrop-filter: blur(20px) saturate(160%); 
   -webkit-backdrop-filter: blur(20px) saturate(160%); 
   border: 1px solid rgba(255,255,255,0.15); 
@@ -2021,7 +2021,6 @@ onUnmounted(() => {
 .about li { font-size: 13px; color: #ccc; line-height: 1.8; }
 .esc-tip { margin-top: 20px; padding: 10px 14px; background: rgba(74,144,217,0.1); border-radius: 8px; color: #7fb2e5 !important; font-size: 12px !important; }
 
-/* --- 以下为原封不动的移动端专属样式，绝不乱改 --- */
 @media (max-width: 768px) {
   .topbar { padding: 8px 12px; }
   .top-left, .top-right { gap: 8px; }
