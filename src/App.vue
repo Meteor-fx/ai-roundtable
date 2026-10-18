@@ -504,9 +504,9 @@ const currentScenarioKey = ref('cafe')
 // ============================================================
 // 串门相关状态
 // ============================================================
-const visitingCharId = ref(null)      // 本页外出的使者 ID
-const incomingVisitor = ref(null)     // 来本页做客的访客 { name, color, avatar, topic, scene }
-const visitorBubble = ref('')         // 访客头顶气泡
+const visitingCharId = ref(null)
+const incomingVisitor = ref(null)
+const visitorBubble = ref('')
 
 const discussPhase = computed(() => {
   if (!isDiscussing.value) return ''
@@ -562,6 +562,7 @@ const dollStyle = (id) => {
       transform: `translate3d(${screenW.value + 200}px, ${s.py - 72}px, 0)`
     }
   }
+  // 恢复平滑的过渡（去掉 Math.round）
   return {
     '--color': char?.color,
     transform: `translate3d(${s.px - 65}px, ${s.py - 72}px, 0) rotate(${s.tilt}deg) scale(${s.squash})`
@@ -1213,12 +1214,10 @@ const visitNeighbor = () => {
     return
   }
 
-  // 随机选一个使者（避开小默，他太安静了）
   const candidates = characters.value.filter(c => c.id !== 'mo')
   const envoy = candidates[Math.floor(Math.random() * candidates.length)]
   visitingCharId.value = envoy.id
 
-  // 使者飘向右边缘
   const s = dollStates[envoy.id]
   s.mood = 'speaking'
   s.tx = 0.98

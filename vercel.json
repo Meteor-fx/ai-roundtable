@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/zhipu/:path*",
+      "destination": "https://open.bigmodel.cn/api/paas/v4/:path*"
+    }
+  ]
+}
