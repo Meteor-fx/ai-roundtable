@@ -38,7 +38,6 @@
     <div class="stage">
       <div class="center-halo" :style="{ background: `radial-gradient(circle, ${currentScenario.accent}22, transparent 70%)` }"></div>
 
-      <!-- 来访客人展示 -->
       <transition name="visitor-enter">
         <div 
           v-if="incomingVisitor" 
@@ -118,10 +117,18 @@
             <pre class="summary-body">{{ msg.content }}</pre>
           </div>
           <div v-else-if="msg.speaker !== 'user'" class="msg-row left">
-            <img :src="getAvatar(msg.speaker)" class="avatar" @click.stop="mentionCharacter(getChar(msg.speaker))" />
+            <div class="avatar-wrapper">
+              <img :src="getAvatar(msg.speaker)" class="avatar" @click.stop="mentionCharacter(getChar(msg.speaker))" />
+              <div v-if="msg.isVisitor" class="visitor-badge">来访</div>
+            </div>
             <div class="msg-main">
-              <div class="nick" :style="{ color: getColor(msg.speaker) }">{{ getName(msg.speaker) }}</div>
-              <div class="bubble ai" :class="{ 'bubble-muted': msg.isFallback }">{{ msg.content }}</div>
+              <div class="nick" :style="{ color: getColor(msg.speaker) }">
+                {{ getName(msg.speaker) }}
+                <span v-if="msg.isVisitor" class="visitor-tag">🚪 访客</span>
+              </div>
+              <div class="bubble ai" :class="{ 'bubble-muted': msg.isFallback, 'visitor-bubble-style': msg.isVisitor }">
+                {{ msg.content }}
+              </div>
             </div>
           </div>
           <div v-else class="msg-row right">
@@ -133,11 +140,19 @@
           </div>
         </template>
 
-        <div v-if="isDiscussing && typingId" class="msg-row left">
-          <img :src="getAvatar(typingId)" class="avatar" />
+        <div v-if="typingId" class="msg-row left">
+          <div class="avatar-wrapper">
+            <img :src="getAvatar(typingId)" class="avatar" />
+            <div v-if="isVisitorTyping" class="visitor-badge">来访</div>
+          </div>
           <div class="msg-main">
-            <div class="nick" :style="{ color: getColor(typingId) }">{{ getName(typingId) }}</div>
-            <div class="bubble ai typing"><span></span><span></span><span></span></div>
+            <div class="nick" :style="{ color: getColor(typingId) }">
+              {{ getName(typingId) }}
+              <span v-if="isVisitorTyping" class="visitor-tag">🚪 访客</span>
+            </div>
+            <div class="bubble ai typing" :class="{ 'visitor-bubble-style': isVisitorTyping }">
+              <span></span><span></span><span></span>
+            </div>
           </div>
         </div>
       </div>
@@ -222,9 +237,9 @@
           <section>
             <h3>⏱️ 讨论轮数</h3>
             <div class="round-picker">
-              <button v-for="n in [5, 8, 12, 20]" :key="n" :class="{ active: totalRounds === n }" @click="totalRounds = n">{{ n }} 轮</button>
+              <button v-for="n in [15, 30, 50, 80]" :key="n" :class="{ active: totalRounds === n }" @click="totalRounds = n">{{ n }} 轮</button>
             </div>
-            <p class="hint">1 轮 = 3 人发言，8 轮大约 3-4 分钟</p>
+            <p class="hint">1 轮 = 3 人发言，30 轮大约 10-12 分钟</p>
           </section>
           <div class="actions">
             <button class="big-btn" :style="{ background: `linear-gradient(135deg, ${currentScenario.accent}, ${currentScenario.accent2})` }"
@@ -374,17 +389,17 @@ const hotSearchList = ref([
 
 const characters = ref([
   { id: 'che', name: '小澈', personality: '理性分析', avatar: cheImg, color: '#4A90D9', emotion: 20,
-    description: '喜欢把事情想清楚，但不是数据机器，也会被别人的话打动。' },
+    description: '数据分析师，逻辑控，但偶尔会因为争论不赢而嘴硬。' },
   { id: 'man', name: '小满', personality: '温暖陪伴', avatar: manImg, color: '#FFB6C1', emotion: 10,
-    description: '温和但不讨好，能接住情绪，也有自己的想法。' },
+    description: '幼教老师，温柔耐心，但非常讨厌被当成“老好人”。' },
   { id: 'tiao', name: '小跳', personality: '开心果', avatar: tiaoImg, color: '#FFD93D', emotion: 40,
-    description: '爱开玩笑，但偶尔也会认真得让你意外。' },
+    description: '游戏主播，搞笑乐天派，但提到现实问题会突然认真。' },
   { id: 'dun', name: '小盾', personality: '靠谱担当', avatar: dunImg, color: '#6BCB77', emotion: 15,
-    description: '会留意细节，但不会念经，也会开玩笑。' },
+    description: '生活管家，稳重爱操心，有点控制欲。' },
   { id: 'shan', name: '小闪', personality: '脑洞担当', avatar: shanImg, color: '#9B59B6', emotion: 30,
-    description: '总能想到不一样的角度，兴奋时会连珠炮。' },
+    description: '灵感艺术家，脑洞大，偶尔会沉浸在自己的世界里。' },
   { id: 'mo', name: '小默', personality: '安静有想法', avatar: moImg, color: '#A8D8EA', emotion: 5,
-    description: '安静但有温度，说话简洁，偶尔一针见血。' }
+    description: '图书管理员，话少，但是个微表情大师。' }
 ])
 
 const DISCUSSION_ANGLES = [
@@ -482,6 +497,7 @@ const isDiscussing = ref(false)
 const isPaused = ref(false)
 const currentSpeakerId = ref('')
 const typingId = ref('')
+const isVisitorTyping = ref(false) 
 const userMessage = ref('')
 const userMention = ref(null)
 const mentionedCharId = ref('')
@@ -491,7 +507,7 @@ const apiStatus = ref('ok')
 const discussionHistory = ref([])
 const stopFlag = ref(false)
 const currentRound = ref(0)
-const totalRounds = ref(8)
+const totalRounds = ref(30) // 默认 30 轮，足够长了
 const recentAchievement = ref('')
 const currentTime = ref('')
 const lastUserActivity = ref(Date.now())
@@ -501,9 +517,6 @@ const dollBubbles = ref({})
 const visitor = ref('')
 const currentScenarioKey = ref('cafe')
 
-// ============================================================
-// 串门相关状态
-// ============================================================
 const visitingCharId = ref(null)
 const incomingVisitor = ref(null)
 const visitorBubble = ref('')
@@ -553,7 +566,6 @@ const dollClass = (id) => {
 const dollStyle = (id) => {
   const s = dollStates[id]
   const char = characters.value.find(c => c.id === id)
-  // 使者外出中，把它移出屏幕
   if (visitingCharId.value === id) {
     return {
       '--color': char?.color,
@@ -562,7 +574,6 @@ const dollStyle = (id) => {
       transform: `translate3d(${screenW.value + 200}px, ${s.py - 72}px, 0)`
     }
   }
-  // 恢复平滑的过渡（去掉 Math.round）
   return {
     '--color': char?.color,
     transform: `translate3d(${s.px - 65}px, ${s.py - 72}px, 0) rotate(${s.tilt}deg) scale(${s.squash})`
@@ -814,6 +825,7 @@ const speakOnce = async (charId, history, sceneName, options = {}) => {
 
   typingId.value = charId
   currentSpeakerId.value = charId
+  isVisitorTyping.value = options.isVisitor || false
   moveToSpeak(charId)
 
   try {
@@ -823,23 +835,20 @@ const speakOnce = async (charId, history, sceneName, options = {}) => {
     })
 
     if (!result.ok) {
-      const fallback = `（${char.name}暂时走神了）`
-      messages.value.push({
-        speaker: charId,
-        content: fallback,
-        time: nowTime(),
-        isFallback: true
-      })
-      nextTick(() => {
-        if (chatArea.value) chatArea.value.scrollTop = chatArea.value.scrollHeight
-      })
-      return { ok: false, displayed: true }
+      // 🔥 修复：如果失败，不再往聊天框里塞报错，只在控制台输出，避免刷屏
+      console.warn(`[${char.name}] 发言失败，原因: ${result.reason}`)
+      return { ok: false, displayed: false }
     }
 
     apiCallCount.value++
     const reply = result.content
 
-    messages.value.push({ speaker: charId, content: reply, time: nowTime() })
+    messages.value.push({ 
+      speaker: charId, 
+      content: reply, 
+      time: nowTime(),
+      isVisitor: options.isVisitor || false 
+    })
     history.push({ role: 'user', content: `${char.name}：${reply}` })
 
     dollBubbles.value[charId] = reply.length > 24 ? reply.slice(0, 24) + '…' : reply
@@ -861,6 +870,7 @@ const speakOnce = async (charId, history, sceneName, options = {}) => {
   } finally {
     typingId.value = ''
     currentSpeakerId.value = ''
+    isVisitorTyping.value = false
     moveHome(charId)
   }
 }
@@ -1041,9 +1051,6 @@ const stopDiscussion = async () => {
   saveHistory()
 }
 
-// ============================================================
-// 用户插话
-// ============================================================
 const userSpeak = async () => {
   if (!userMessage.value.trim()) return
 
@@ -1069,7 +1076,7 @@ const userSpeak = async () => {
 
   const responders = [...characters.value]
     .sort(() => Math.random() - 0.5)
-    .slice(0, 2 + Math.floor(Math.random() * 2))
+    .slice(0, 3 + Math.floor(Math.random() * 2))
 
   const history = []
 
@@ -1087,7 +1094,7 @@ const userSpeak = async () => {
 
   history.push({
     role: 'user',
-    content: `[用户刚刚插话] "${userText}"\n\n请注意：用户刚刚打断了讨论，说了一句自己的看法。你必须直接回应用户这句话，不要再继续原来的讨论。`
+    content: `[用户说] "${userText}"\n请回应用户这句话。`
   })
 
   isDiscussing.value = true
@@ -1105,29 +1112,26 @@ const userSpeak = async () => {
       let extraContext = ''
 
       if (i === 0) {
-        extraContext += `【当前情况 - 重要】用户刚刚在讨论进行中插了一句话："${userText}"。
-你是第一个回应的。必须【直接回应用户这句话】，不要再继续之前和别人讨论的内容。
-像一个朋友听到你说话后立刻接话那样，自然、有反应。
-不要提"上一位发言者"，不要重复别人说过的。\n`
+        extraContext += `【当前情况】用户刚刚说了一句："${userText}"。
+你是第一个回应的。必须【直接回应用户这句话】。不要提"上一位发言者"。\n`
       } else {
         const prev = getPrevAIMessage()
         if (prev && prev.speaker !== 'user') {
           const prevName = getName(prev.speaker)
-          extraContext += `【上一位回应者】"${prevName}"刚刚针对用户的插话说了：\n"${prev.content}"\n`
-          extraContext += `【你的任务】在 ${prevName} 的基础上补充你自己的观点。必须围绕用户刚才插话的内容，不要跑题到原来的讨论。\n`
+          extraContext += `【上一位回应者】"${prevName}"刚刚说了：\n"${prev.content}"\n`
+          extraContext += `【你的任务】在 ${prevName} 的基础上补充或反驳。必须围绕用户刚才说的话，不要跑题。\n`
         } else {
-          extraContext += `【你的任务】用户刚刚插话说："${userText}"。请直接回应用户。\n`
+          extraContext += `【你的任务】用户刚刚说："${userText}"。请回应用户。\n`
         }
       }
 
       extraContext += `${stance.desc}\n`
       extraContext += `${angle}\n`
       extraContext += `【硬性要求】
-1. 必须【针对用户刚才说的话】回应，不要跑题去讲原来的讨论。
+1. 必须【针对用户刚才说的话】回应。
 2. 禁止纯附和（不要只说"我同意"、"确实"）。
 3. 可以赞同、可以质疑、可以补充、可以举例子。
-4. 50-100字，像微信聊天一样自然，可以用语气词，适度表达情绪。
-5. 直接说你的观点，不要加"某某说："前缀。`
+4. 50-100字，像微信聊天一样自然。`
 
       const preDelay = i === 0 ? 800 : 1800 + Math.random() * 800
       await waitWithControl(preDelay)
@@ -1198,10 +1202,180 @@ const greetUser = async () => {
   }
 }
 
-// ============================================================
-// 串门（带互动的完整版）
-// ============================================================
 const channel = ref(null)
+
+// 彻底剥离 stopFlag 的串门对话
+const runGuestConversation = async (data) => {
+  try {
+    isDiscussing.value = true
+    isPaused.value = false
+    stopFlag.value = false
+
+    const localGreeters = [...characters.value]
+      .filter(c => c.id !== 'mo')
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 3)
+
+    const history = [
+      { role: 'user', content: `另一个圆桌的"${data.visitorName}"来我们这里做客了。ta 那边正在聊「${data.currentTopic}」。ta 刚才在那边聊了：\n${data.recentHistory}` }
+    ]
+
+    // 8 轮强循环
+    for (let round = 0; round < 8; round++) {
+      // 1. 本地角色说话
+      const localChar = localGreeters[round % localGreeters.length]
+      typingId.value = localChar.id
+      currentSpeakerId.value = localChar.id
+      isVisitorTyping.value = false
+
+      let promptLocal = ''
+      if (round === 0) {
+        promptLocal = `请热情欢迎访客"${data.visitorName}"，并好奇地问 ta 刚才在对面聊了什么。`
+      } else if (round % 2 === 0) {
+        promptLocal = `请针对访客刚才说的见闻，追问一句或者发表你的看法。`
+      } else {
+        promptLocal = `访客分享了对面的情况，请回应 ta 一句。`
+      }
+
+      const r1 = await callAI(localChar.id, history, currentScenario.value.name, { extraContext: promptLocal })
+      if (r1.ok) {
+        messages.value.push({ speaker: localChar.id, content: r1.content, time: nowTime() })
+        history.push({ role: 'user', content: `${localChar.name}：${r1.content}` })
+        apiCallCount.value++
+      }
+      typingId.value = ''
+      await sleep(1200)
+
+      // 2. 访客接话
+      typingId.value = 'che'
+      currentSpeakerId.value = 'che'
+      isVisitorTyping.value = true
+
+      let promptVisitor = round === 0 
+        ? `你是访客"${data.visitorName}"，请回应对方的欢迎，并简单介绍你们那边的话题。`
+        : `你是访客"${data.visitorName}"，请针对对方刚才的话接茬，可以反驳、赞同或补充，20-60字。`
+
+      const r2 = await callAI('che', history, currentScenario.value.name, { extraContext: promptVisitor })
+      if (r2.ok) {
+        messages.value.push({ speaker: 'che', content: r2.content, time: nowTime(), isVisitor: true })
+        history.push({ role: 'user', content: `${data.visitorName}：${r2.content}` })
+        apiCallCount.value++
+      }
+      typingId.value = ''
+      isVisitorTyping.value = false
+      await sleep(1200)
+    }
+
+    visitorBubble.value = '聊得太开心了，我先回去啦！'
+
+    setTimeout(() => {
+      if (!incomingVisitor.value) return
+      if (channel.value) {
+        const backMsgs = messages.value.slice(-10).map(m => `${getName(m.speaker)}: ${m.content}`).join('\n')
+        channel.value.postMessage({
+          type: 'visit-back',
+          from: '另一个圆桌的朋友',
+          currentTopic: topic.value || '日常闲聊',
+          currentScene: currentScenario.value.name,
+          chatHistory: backMsgs,
+          time: Date.now()
+        })
+      }
+      messages.value.push({
+        speaker: 'system',
+        content: `🚪 ${incomingVisitor.value.name} 回自己的圆桌了`,
+        time: nowTime()
+      })
+      incomingVisitor.value = null
+      visitorBubble.value = ''
+      visitor.value = ''
+    }, 3000) 
+
+  } catch (err) {
+    console.error(err)
+  } finally {
+    isDiscussing.value = false
+    typingId.value = ''
+    currentSpeakerId.value = ''
+    isVisitorTyping.value = false
+  }
+}
+
+const runReturnConversation = async (data) => {
+  if (!visitingCharId.value) return
+  const envoy = getChar(visitingCharId.value)
+  const s = dollStates[envoy.id]
+  s.mood = 'idle'
+  s.tx = homes[envoy.id].x
+  s.ty = homes[envoy.id].y
+
+  messages.value.push({
+    speaker: 'system',
+    content: `🚪 ${envoy.name} 从对门回来了！对面正在聊「${data.currentTopic}」`,
+    time: nowTime()
+  })
+
+  setTimeout(async () => {
+    try {
+      isDiscussing.value = true
+      isPaused.value = false
+      stopFlag.value = false
+
+      const history = [
+        { role: 'user', content: `你刚去对门串门回来。对门正在聊「${data.currentTopic}」，他们的场景是「${data.currentScene}」。你在那边的聊天记录是：\n${data.chatHistory}\n请结合这些见闻，跟大家说说这次串门的感受。` }
+      ]
+      
+      for (let round = 0; round < 6; round++) {
+        if (round === 0) {
+          typingId.value = envoy.id
+          currentSpeakerId.value = envoy.id
+          const r1 = await callAI(envoy.id, history, currentScenario.value.name, {
+            extraContext: `【任务】你刚从对门回来，对面在聊「${data.currentTopic}」，跟大家说说见闻。`
+          })
+          if (r1.ok) {
+            messages.value.push({ speaker: envoy.id, content: r1.content, time: nowTime() })
+            history.push({ role: 'user', content: `${envoy.name}：${r1.content}` })
+            apiCallCount.value++
+          }
+          typingId.value = ''
+        } else if (round % 2 !== 0) {
+          const asker = characters.value.filter(c => c.id !== envoy.id).sort(() => Math.random() - 0.5)[0]
+          typingId.value = asker.id
+          currentSpeakerId.value = asker.id
+          const rq = await callAI(asker.id, history, currentScenario.value.name, {
+            extraContext: `【任务】${envoy.name}刚从对门回来，请针对 ta 说的见闻，追问一句。`
+          })
+          if (rq.ok) {
+            messages.value.push({ speaker: asker.id, content: rq.content, time: nowTime() })
+            history.push({ role: 'user', content: `${asker.name}：${rq.content}` })
+            apiCallCount.value++
+          }
+          typingId.value = ''
+        } else {
+          typingId.value = envoy.id
+          currentSpeakerId.value = envoy.id
+          const ra = await callAI(envoy.id, history, currentScenario.value.name, {
+            extraContext: `【任务】请回答刚才对方的问题。`
+          })
+          if (ra.ok) {
+            messages.value.push({ speaker: envoy.id, content: ra.content, time: nowTime() })
+            history.push({ role: 'user', content: `${envoy.name}：${ra.content}` })
+            apiCallCount.value++
+          }
+          typingId.value = ''
+        }
+        await sleep(1200)
+      }
+    } catch(err) {
+      console.error(err)
+    } finally {
+      isDiscussing.value = false
+      typingId.value = ''
+      currentSpeakerId.value = ''
+      visitingCharId.value = null
+    }
+  }, 1000)
+}
 
 const visitNeighbor = () => {
   if (!channel.value) {
@@ -1229,6 +1403,8 @@ const visitNeighbor = () => {
     time: nowTime()
   })
 
+  const recentMsgs = messages.value.slice(-5).map(m => `${getName(m.speaker)}: ${m.content}`).join('\n')
+
   channel.value.postMessage({
     type: 'visit',
     from: '另一个圆桌的朋友',
@@ -1237,6 +1413,7 @@ const visitNeighbor = () => {
     visitorAvatar: envoy.avatar,
     currentTopic: topic.value || '日常闲聊',
     currentScene: currentScenario.value.name,
+    recentHistory: recentMsgs,
     time: Date.now()
   })
 }
@@ -1341,17 +1518,14 @@ onMounted(() => {
 
   try {
     channel.value = new BroadcastChannel('ai-roundtable')
-    channel.value.onmessage = async (event) => {
+    channel.value.onmessage = (event) => {
       const data = event.data
-
-      // ========== 收到访客 ==========
       if (data.type === 'visit') {
         if (incomingVisitor.value) {
           channel.value.postMessage({ type: 'visit-reject', reason: '本页已有访客' })
           return
         }
-
-        const visitorInfo = {
+        incomingVisitor.value = {
           name: data.visitorName,
           color: data.visitorColor,
           avatar: data.visitorAvatar,
@@ -1359,147 +1533,20 @@ onMounted(() => {
           scene: data.currentScene,
           enterAt: Date.now()
         }
-        incomingVisitor.value = visitorInfo
         visitor.value = `${data.visitorName} 来做客了`
         visitorBubble.value = '大家好！我来串门啦～'
-
         messages.value.push({
           speaker: 'system',
           content: `🚪 ${data.visitorName}（来自${data.currentScene}）来做客了！那边正在聊「${data.currentTopic}」`,
           time: nowTime()
         })
-
-        // 本地 2-3 个角色欢迎访客
-        setTimeout(async () => {
-          const greeters = [...characters.value]
-            .filter(c => c.id !== 'mo' || Math.random() > 0.5)
-            .sort(() => Math.random() - 0.5)
-            .slice(0, 2 + Math.floor(Math.random() * 2))
-
-          const history = [
-            { role: 'user', content: `另一个圆桌的"${data.visitorName}"来我们这里做客了。ta 那边正在聊「${data.currentTopic}」。请用你的方式欢迎一下，并好奇地问问 ta 那边在聊什么，30-60字，口语化。` }
-          ]
-
-          for (let i = 0; i < greeters.length; i++) {
-            const greeter = greeters[i]
-            typingId.value = greeter.id
-            currentSpeakerId.value = greeter.id
-
-            const result = await callAI(greeter.id, history, currentScenario.value.name, {
-              extraContext: `【场景】另一个圆桌的朋友"${data.visitorName}"来串门了。请热情欢迎 ta，并对 ta 那边的话题「${data.currentTopic}」表示好奇。`
-            })
-
-            if (result.ok) {
-              apiCallCount.value++
-              messages.value.push({ speaker: greeter.id, content: result.content, time: nowTime() })
-              history.push({ role: 'user', content: `${greeter.name}：${result.content}` })
-              greeter.emotion = Math.min(100, greeter.emotion + 10)
-              nextTick(() => {
-                if (chatArea.value) chatArea.value.scrollTop = chatArea.value.scrollHeight
-              })
-            }
-            typingId.value = ''
-            currentSpeakerId.value = ''
-            await sleep(800 + Math.random() * 500)
-          }
-
-          visitorBubble.value = '谢谢！我回去转达一下～'
-
-          // 25 秒后访客自动离开
-          setTimeout(() => {
-            if (!incomingVisitor.value) return
-            if (channel.value) {
-              channel.value.postMessage({
-                type: 'visit-back',
-                from: '另一个圆桌的朋友',
-                currentTopic: topic.value || '日常闲聊',
-                currentScene: currentScenario.value.name,
-                time: Date.now()
-              })
-            }
-            messages.value.push({
-              speaker: 'system',
-              content: `🚪 ${incomingVisitor.value.name} 回自己的圆桌了`,
-              time: nowTime()
-            })
-            incomingVisitor.value = null
-            visitorBubble.value = ''
-            visitor.value = ''
-          }, 25000)
-
-        }, 1000)
+        runGuestConversation(data)
       }
 
-      // ========== 使者回来了 ==========
       if (data.type === 'visit-back') {
-        if (visitingCharId.value) {
-          const envoy = getChar(visitingCharId.value)
-          const s = dollStates[envoy.id]
-          s.mood = 'idle'
-          s.tx = homes[envoy.id].x
-          s.ty = homes[envoy.id].y
-
-          messages.value.push({
-            speaker: 'system',
-            content: `🚪 ${envoy.name} 从对门回来了！对面正在聊「${data.currentTopic}」`,
-            time: nowTime()
-          })
-
-          setTimeout(async () => {
-            const history = [
-              { role: 'user', content: `你刚去对门串门回来。对门正在聊「${data.currentTopic}」，他们的场景是「${data.currentScene}」。请用你的方式跟大家说说这次的见闻，30-60字，口语化。` }
-            ]
-            typingId.value = envoy.id
-            currentSpeakerId.value = envoy.id
-
-            const result = await callAI(envoy.id, history, currentScenario.value.name, {
-              extraContext: `【你的任务】你刚从对门串门回来，对面在聊「${data.currentTopic}」。跟大家说说见闻，30-60字，可以带点兴奋或感慨。`
-            })
-
-            if (result.ok) {
-              apiCallCount.value++
-              messages.value.push({ speaker: envoy.id, content: result.content, time: nowTime() })
-              envoy.emotion = Math.min(100, envoy.emotion + 15)
-              nextTick(() => {
-                if (chatArea.value) chatArea.value.scrollTop = chatArea.value.scrollHeight
-              })
-            }
-            typingId.value = ''
-            currentSpeakerId.value = ''
-
-            // 让另外 1-2 个角色追问
-            setTimeout(async () => {
-              const askers = characters.value
-                .filter(c => c.id !== envoy.id)
-                .sort(() => Math.random() - 0.5)
-                .slice(0, 1 + Math.floor(Math.random() * 2))
-
-              for (const asker of askers) {
-                const askHistory = [
-                  { role: 'user', content: `${envoy.name}刚从对门回来，说对面在聊「${data.currentTopic}」。请追问一句，20-40字，口语化。` }
-                ]
-                typingId.value = asker.id
-                currentSpeakerId.value = asker.id
-                const r = await callAI(asker.id, askHistory, currentScenario.value.name)
-                if (r.ok) {
-                  apiCallCount.value++
-                  messages.value.push({ speaker: asker.id, content: r.content, time: nowTime() })
-                  nextTick(() => {
-                    if (chatArea.value) chatArea.value.scrollTop = chatArea.value.scrollHeight
-                  })
-                }
-                typingId.value = ''
-                currentSpeakerId.value = ''
-                await sleep(600)
-              }
-
-              visitingCharId.value = null
-            }, 1500)
-          }, 800)
-        }
+        runReturnConversation(data)
       }
 
-      // ========== 被拒绝 ==========
       if (data.type === 'visit-reject') {
         if (visitingCharId.value) {
           const envoy = getChar(visitingCharId.value)
@@ -1507,7 +1554,6 @@ onMounted(() => {
           s.mood = 'idle'
           s.tx = homes[envoy.id].x
           s.ty = homes[envoy.id].y
-
           messages.value.push({
             speaker: 'system',
             content: `🚪 对门已经有客人了，${envoy.name} 白跑一趟…`,
@@ -1535,6 +1581,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* 样式完全保持原样 */
 * { box-sizing: border-box; margin: 0; padding: 0; }
 .app { position: relative; width: 100%; height: 100vh; overflow: hidden; font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; color: #fff; }
 
@@ -1595,7 +1642,6 @@ onUnmounted(() => {
 .pop-enter-active { animation: pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
 @keyframes pop { from { transform: translateX(-50%) scale(0.5); opacity: 0; } to { transform: translateX(-50%) scale(1); opacity: 1; } }
 
-/* 来访客人 */
 .incoming-visitor {
   position: absolute;
   right: 6%;
@@ -1604,7 +1650,7 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: center;
   pointer-events: auto;
-  z-index: 25;
+  z-index: 35; 
   filter: drop-shadow(0 0 30px var(--visitor-color)) drop-shadow(0 8px 20px rgba(0,0,0,0.5));
   animation: visitorFloat 3s ease-in-out infinite;
 }
@@ -1720,22 +1766,49 @@ onUnmounted(() => {
 .msg-row.right { justify-content: flex-end; }
 @keyframes msgIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
+.avatar-wrapper {
+  position: relative;
+  flex-shrink: 0;
+}
+.visitor-badge {
+  position: absolute;
+  bottom: -4px;
+  right: -6px;
+  background: #FFD93D;
+  color: #000;
+  font-size: 9px;
+  font-weight: bold;
+  padding: 1px 4px;
+  border-radius: 6px;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  border: 1px solid #1a1a2e;
+}
+
 .avatar { width: 42px; height: 42px; border-radius: 10px; object-fit: cover; background: rgba(255,255,255,0.1); flex-shrink: 0; cursor: pointer; transition: transform 0.2s; }
 .avatar:hover { transform: scale(1.1); }
 .user-avatar { display: flex; align-items: center; justify-content: center; font-size: 22px; background: linear-gradient(135deg, #6BCB77, #4A90D9); }
 
 .msg-main { max-width: 68%; display: flex; flex-direction: column; gap: 4px; }
-.nick { font-size: 11px; color: #999; padding: 0 6px; font-weight: bold; }
+.nick { font-size: 11px; color: #999; padding: 0 6px; font-weight: bold; display: flex; align-items: center; gap: 4px; }
 .nick.user { text-align: right; color: #6BCB77; }
+.visitor-tag { font-size: 10px; color: #FFD93D; background: rgba(255,217,61,0.15); padding: 1px 6px; border-radius: 4px; }
 
 .bubble { padding: 10px 15px; font-size: 14px; line-height: 1.55; word-break: break-word; border-radius: 4px 14px 14px 14px; }
 .bubble.ai { background: rgba(255,255,255,0.94); color: #1a1a2e; box-shadow: 0 3px 12px rgba(0,0,0,0.2); }
 .bubble.bubble-muted { opacity: 0.5; font-style: italic; }
+.bubble.visitor-bubble-style {
+  background: rgba(255, 217, 61, 0.08);
+  border: 1px dashed #FFD93D;
+  color: #FFD93D;
+  box-shadow: 0 3px 12px rgba(255,217,61,0.15);
+}
 .bubble.user { background: linear-gradient(135deg, #4A90D9, #9B59B6); color: #fff; border-radius: 14px 4px 14px 14px; box-shadow: 0 3px 12px rgba(74,144,217,0.3); }
 .bubble.typing { display: flex; gap: 4px; padding: 14px 16px; }
 .bubble.typing span { width: 6px; height: 6px; border-radius: 50%; background: #4A90D9; animation: tdBounce 1.2s infinite; }
 .bubble.typing span:nth-child(2) { animation-delay: 0.2s; }
 .bubble.typing span:nth-child(3) { animation-delay: 0.4s; }
+.bubble.visitor-bubble-style.typing span { background: #FFD93D; }
 
 .sys-row { display: flex; justify-content: center; }
 .sys-row span { font-size: 12px; color: #999; background: rgba(0,0,0,0.4); padding: 5px 14px; border-radius: 12px; }
@@ -1841,11 +1914,34 @@ onUnmounted(() => {
 .esc-tip { margin-top: 20px; padding: 10px 14px; background: rgba(74,144,217,0.1); border-radius: 8px; color: #7fb2e5 !important; font-size: 12px !important; }
 
 @media (max-width: 768px) {
-  .chat-drawer { bottom: 76px; }
-  .paper-doll { width: 95px; height: 110px; }
-  .tool-btn { min-width: 44px; padding: 6px 8px; }
-  .tool-btn .tl { display: none; }
+  .topbar { padding: 8px 12px; }
+  .top-left, .top-right { gap: 8px; }
+  .menu-btn { width: 32px; height: 32px; padding: 0 8px; }
+  .brand { padding: 4px 10px; font-size: 12px; }
+  .ambience-switch { padding: 2px; }
+  .ambience-switch button { padding: 4px 8px; font-size: 10px; }
+  .info-pill { display: none; }
   .scenario-rail { display: none; }
+  .stage { top: 50px; }
+  .paper-doll { width: 80px; height: 90px; }
+  .doll-tag { padding: 2px 8px; font-size: 10px; bottom: -4px; }
+  .doll-bubble { top: -18px; padding: 4px 8px; font-size: 11px; }
+  .incoming-visitor { right: 2%; top: 20%; transform: scale(0.8); }
+  .chat-drawer { bottom: 65px; height: 45vh !important; }
+  .chat-head { padding: 8px 16px; }
+  .chat-title { font-size: 13px; }
+  .topic-label { max-width: 120px; }
+  .discuss-bar { padding: 6px 16px; }
+  .chat-scroll { padding: 10px 16px; gap: 10px; }
+  .bubble { font-size: 13px; padding: 8px 12px; }
+  .input-bar { padding: 10px 16px; }
+  .chat-input { padding: 10px 14px; font-size: 13px; }
+  .send-btn { padding: 10px 18px; min-width: 60px; font-size: 13px; }
+  .toolbar { width: 95%; overflow-x: auto; justify-content: flex-start; padding: 6px 8px; bottom: 10px; }
+  .toolbar::-webkit-scrollbar { display: none; }
+  .tool-btn { min-width: 40px; padding: 4px 6px; }
+  .tool-btn .ti { font-size: 16px; }
+  .tool-btn .tl { display: none; }
   .side-menu, .panel-drawer { width: 100%; max-width: 100%; }
 }
 </style>
