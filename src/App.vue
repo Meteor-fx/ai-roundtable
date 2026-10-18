@@ -74,7 +74,7 @@
       </div>
     </div>
 
-    <!-- 聊天抽屉：调整为高透玻璃效果 -->
+    <!-- 聊天抽屉：适度透明，磨砂玻璃 -->
     <div class="chat-drawer" :style="{ height: chatHeight + 'vh' }">
       <div class="drawer-handle" @click.stop="drawerExpanded = !drawerExpanded">
         <div class="handle-bar"></div>
@@ -895,12 +895,9 @@ const speakOnce = async (charId, history, sceneName, options = {}) => {
 
     char.emotion = Math.min(100, char.emotion + 8 + Math.random() * 12)
 
-    // 滚动优化
+    // 强制自动滚动到底部
     nextTick(() => {
-      const el = chatArea.value
-      if (el && el.scrollHeight - el.scrollTop - el.clientHeight < 150) {
-        el.scrollTop = el.scrollHeight
-      }
+      if (chatArea.value) chatArea.value.scrollTop = chatArea.value.scrollHeight
     })
 
     return { ok: true, displayed: true }
@@ -1121,6 +1118,11 @@ const userSpeak = async () => {
   lastUserActivity.value = Date.now()
   idlePrompted.value = false
 
+  // 强制自动滚动到底部
+  nextTick(() => {
+    if (chatArea.value) chatArea.value.scrollTop = chatArea.value.scrollHeight
+  })
+
   if (isDiscussing.value) {
     stopFlag.value = true
     isPaused.value = false
@@ -1301,6 +1303,7 @@ const runGuestConversation = async (data) => {
         messages.value.push({ speaker: localChar.id, content: r1.content, time: nowTime() })
         history.push({ role: 'user', content: `${localChar.name}：${r1.content}` })
         apiCallCount.value++
+        nextTick(() => { if (chatArea.value) chatArea.value.scrollTop = chatArea.value.scrollHeight })
       }
       typingId.value = ''
       await sleep(1200)
@@ -1326,6 +1329,7 @@ const runGuestConversation = async (data) => {
         })
         history.push({ role: 'user', content: `${data.visitorName}：${r2.content}` })
         apiCallCount.value++
+        nextTick(() => { if (chatArea.value) chatArea.value.scrollTop = chatArea.value.scrollHeight })
       }
       typingId.value = ''
       isVisitorTyping.value = false
@@ -1355,6 +1359,7 @@ const runGuestConversation = async (data) => {
       incomingVisitor.value = null
       visitorBubble.value = ''
       visitor.value = ''
+      nextTick(() => { if (chatArea.value) chatArea.value.scrollTop = chatArea.value.scrollHeight })
     }, 3000) 
 
   } catch (err) {
@@ -1384,6 +1389,7 @@ const runReturnConversation = async (data) => {
     content: `🚪 ${envoy.name} 从对门回来了！对面正在聊「${data.currentTopic}」`,
     time: nowTime()
   })
+  nextTick(() => { if (chatArea.value) chatArea.value.scrollTop = chatArea.value.scrollHeight })
 
   setTimeout(async () => {
     try {
@@ -1406,6 +1412,7 @@ const runReturnConversation = async (data) => {
             messages.value.push({ speaker: envoy.id, content: r1.content, time: nowTime() })
             history.push({ role: 'user', content: `${envoy.name}：${r1.content}` })
             apiCallCount.value++
+            nextTick(() => { if (chatArea.value) chatArea.value.scrollTop = chatArea.value.scrollHeight })
           }
           typingId.value = ''
         } else if (round % 2 !== 0) {
@@ -1419,6 +1426,7 @@ const runReturnConversation = async (data) => {
             messages.value.push({ speaker: asker.id, content: rq.content, time: nowTime() })
             history.push({ role: 'user', content: `${asker.name}：${rq.content}` })
             apiCallCount.value++
+            nextTick(() => { if (chatArea.value) chatArea.value.scrollTop = chatArea.value.scrollHeight })
           }
           typingId.value = ''
         } else {
@@ -1431,6 +1439,7 @@ const runReturnConversation = async (data) => {
             messages.value.push({ speaker: envoy.id, content: ra.content, time: nowTime() })
             history.push({ role: 'user', content: `${envoy.name}：${ra.content}` })
             apiCallCount.value++
+            nextTick(() => { if (chatArea.value) chatArea.value.scrollTop = chatArea.value.scrollHeight })
           }
           typingId.value = ''
         }
@@ -1471,6 +1480,7 @@ const visitNeighbor = () => {
     content: `🚪 ${envoy.name} 出发去对门串门了…`,
     time: nowTime()
   })
+  nextTick(() => { if (chatArea.value) chatArea.value.scrollTop = chatArea.value.scrollHeight })
 
   const recentMsgs = messages.value.slice(-5).map(m => `${m.isVisitor ? m.speakerName : getName(m.speaker)}: ${m.content}`).join('\n')
 
@@ -1809,7 +1819,7 @@ onUnmounted(() => {
   }
 }
 
-/* 聊天抽屉：调整为高透玻璃效果 */
+/* 聊天抽屉：适度透明，磨砂玻璃 */
 .chat-drawer { 
   position: absolute; 
   left: 50%; 
@@ -1817,19 +1827,18 @@ onUnmounted(() => {
   transform: translateX(-50%); 
   width: calc(100% - 44px); 
   max-width: 820px; 
-  background: rgba(15, 15, 25, 0.25); /* 极低的不透明度，让背景透出来 */
-  backdrop-filter: blur(16px) saturate(140%); /* 减弱模糊，增强透明感 */
-  -webkit-backdrop-filter: blur(16px) saturate(140%); 
+  background: rgba(15, 15, 25, 0.55); /* 调整为 0.55，比原来 0.6 稍微透明一点 */
+  backdrop-filter: blur(20px) saturate(160%); /* 配合 0.55 的模糊度 */
+  -webkit-backdrop-filter: blur(20px) saturate(160%); 
   border: 1px solid rgba(255,255,255,0.15); 
   border-radius: 24px; 
   z-index: 20; 
-  box-shadow: 0 20px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1); 
+  box-shadow: 0 30px 80px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1); 
   display: flex; 
   flex-direction: column; 
   transition: height 0.5s cubic-bezier(0.34, 1.2, 0.64, 1); 
   overflow: hidden; 
 }
-
 .drawer-handle { padding: 8px 0 4px; cursor: pointer; display: flex; justify-content: center; }
 .drawer-handle:hover .handle-bar { background: rgba(255,255,255,0.5); width: 60px; }
 .handle-bar { width: 40px; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.25); transition: all 0.3s; }
