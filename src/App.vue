@@ -74,7 +74,7 @@
       </div>
     </div>
 
-    <!-- 聊天抽屉：适度透明，磨砂玻璃 -->
+    <!-- 聊天抽屉：调整为高透玻璃效果 (0.55) -->
     <div class="chat-drawer" :style="{ height: chatHeight + 'vh' }">
       <div class="drawer-handle" @click.stop="drawerExpanded = !drawerExpanded">
         <div class="handle-bar"></div>
@@ -385,7 +385,6 @@ const scenarios = {
   }
 }
 
-// 扩充热搜池子，实现“换一换”
 const allHotSearchPool = [
   { title: 'AI 大模型突破新能力', tag: '科技', tagColor: '#9B59B6' },
   { title: '大学生熬夜猝死引关注', tag: '社会', tagColor: '#FF6B6B' },
@@ -885,7 +884,6 @@ const speakOnce = async (charId, history, sceneName, options = {}) => {
     })
     history.push({ role: 'user', content: `${char.name}：${reply}` })
     
-    // 限制历史长度
     if (history.length > 40) history.splice(0, history.length - 40)
 
     dollBubbles.value[charId] = reply.length > 24 ? reply.slice(0, 24) + '…' : reply
@@ -967,7 +965,6 @@ const startDiscussion = async () => {
   isPaused.value = false
   stopFlag.value = false
   
-  // 保留访客记录
   const preservedMsgs = messages.value.filter(m => m.isVisitor || (m.speaker === 'system' && (m.content.includes('串门') || m.content.includes('来访'))))
   messages.value = preservedMsgs
   messages.value.push({ speaker: 'system', content: `--- 开启新话题：${topic.value} ---`, time: nowTime() })
@@ -1308,7 +1305,7 @@ const runGuestConversation = async (data) => {
       typingId.value = ''
       await sleep(1200)
 
-      typingId.value = 'visitor' // 不要用 che 冒充
+      typingId.value = 'visitor' 
       currentSpeakerId.value = ''
       isVisitorTyping.value = true
 
@@ -1819,7 +1816,7 @@ onUnmounted(() => {
   }
 }
 
-/* 聊天抽屉：适度透明，磨砂玻璃 */
+/* 聊天抽屉：适度透明，磨砂玻璃 (0.55) */
 .chat-drawer { 
   position: absolute; 
   left: 50%; 
@@ -1827,8 +1824,8 @@ onUnmounted(() => {
   transform: translateX(-50%); 
   width: calc(100% - 44px); 
   max-width: 820px; 
-  background: rgba(15, 15, 25, 0.55); /* 调整为 0.55，比原来 0.6 稍微透明一点 */
-  backdrop-filter: blur(20px) saturate(160%); /* 配合 0.55 的模糊度 */
+  background: rgba(15, 15, 25, 0.55); /* 0.55 透明度的玻璃效果 */
+  backdrop-filter: blur(20px) saturate(160%); 
   -webkit-backdrop-filter: blur(20px) saturate(160%); 
   border: 1px solid rgba(255,255,255,0.15); 
   border-radius: 24px; 
@@ -2024,6 +2021,7 @@ onUnmounted(() => {
 .about li { font-size: 13px; color: #ccc; line-height: 1.8; }
 .esc-tip { margin-top: 20px; padding: 10px 14px; background: rgba(74,144,217,0.1); border-radius: 8px; color: #7fb2e5 !important; font-size: 12px !important; }
 
+/* --- 以下为原封不动的移动端专属样式，绝不乱改 --- */
 @media (max-width: 768px) {
   .topbar { padding: 8px 12px; }
   .top-left, .top-right { gap: 8px; }
