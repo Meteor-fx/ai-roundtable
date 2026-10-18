@@ -74,7 +74,7 @@
       </div>
     </div>
 
-    <!-- 聊天框：半透明磨砂玻璃 -->
+    <!-- 聊天抽屉：半透明磨砂玻璃 -->
     <div class="chat-drawer" :style="{ height: chatHeight + 'vh' }">
       <div class="drawer-handle" @click.stop="drawerExpanded = !drawerExpanded">
         <div class="handle-bar"></div>
@@ -117,10 +117,10 @@
             <div class="summary-head">📋 圆桌纪要</div>
             <pre class="summary-body">{{ msg.content }}</pre>
           </div>
-          <!-- 兼容访客名字和头像 -->
+          <!-- 彻底分离访客与本地角色 -->
           <div v-else-if="msg.speaker !== 'user'" class="msg-row left">
             <div class="avatar-wrapper">
-              <img :src="msg.isVisitor ? msg.speakerAvatar : getAvatar(msg.speaker)" class="avatar" @click.stop="mentionCharacter(getChar(msg.speaker))" />
+              <img :src="msg.isVisitor ? msg.speakerAvatar : getAvatar(msg.speaker)" class="avatar" @click.stop="!msg.isVisitor && mentionCharacter(getChar(msg.speaker))" />
               <div v-if="msg.isVisitor" class="visitor-badge">来访</div>
             </div>
             <div class="msg-main">
@@ -142,14 +142,15 @@
           </div>
         </template>
 
+        <!-- 访客或本地角色打字状态 -->
         <div v-if="typingId" class="msg-row left">
           <div class="avatar-wrapper">
-            <img :src="getAvatar(typingId)" class="avatar" />
+            <img :src="typingId === 'visitor' ? incomingVisitor?.avatar : getAvatar(typingId)" class="avatar" />
             <div v-if="isVisitorTyping" class="visitor-badge">来访</div>
           </div>
           <div class="msg-main">
-            <div class="nick" :style="{ color: getColor(typingId) }">
-              {{ getName(typingId) }}
+            <div class="nick" :style="{ color: typingId === 'visitor' ? incomingVisitor?.color : getColor(typingId) }">
+              {{ typingId === 'visitor' ? incomingVisitor?.name : getName(typingId) }}
               <span v-if="isVisitorTyping" class="visitor-tag">🚪 访客</span>
             </div>
             <div class="bubble ai typing" :class="{ 'visitor-bubble-style': isVisitorTyping }">
@@ -165,6 +166,7 @@
           <span class="x" @click.stop="userMention = null; mentionedCharId = ''">×</span>
         </div>
         <div class="input-row">
+          <!-- 输入法回车防误触 -->
           <input v-model="userMessage" class="chat-input"
                  :placeholder="inputPlaceholder"
                  @keydown.enter="onEnter"
@@ -1005,7 +1007,7 @@ const startDiscussion = async () => {
         } else {
           const prev = getPrevAIMessage()
           if (prev) {
-            const prevName = getName(prev.speaker)
+            const prevName = prev.isVisitor ? prev.speakerName : getName(prev.speaker)
             extraContext += `【你要回应的对象】上一位发言的是"${prevName}"，ta 说：\n"${prev.content}"\n`
             extraContext += `【你的任务】必须针对 ${prevName} 的这段话做出反应，**不能自说自话**。\n`
           }
@@ -1136,7 +1138,7 @@ const userSpeak = async () => {
     if (m.speaker === 'user') {
       history.push({ role: 'user', content: `用户：${m.content}` })
     } else if (m.speaker !== 'system' && m.speaker !== 'summary' && !m.isFallback) {
-      history.push({ role: 'user', content: `${getName(m.speaker)}：${m.content}` })
+      history.push({ role: 'user', content: `${m.isVisitor ? m.speakerName : getName(m.speaker)}：${m.content}` })
     }
   }
 
@@ -1165,7 +1167,7 @@ const userSpeak = async () => {
       } else {
         const prev = getPrevAIMessage()
         if (prev && prev.speaker !== 'user') {
-          const prevName = getName(prev.speaker)
+          const prevName = prev.isVisitor ? prev.speakerName : getName(prev.speaker)
           extraContext += `【上一位回应者】"${prevName}"刚刚说了：\n"${prev.content}"\n`
           extraContext += `【你的任务】在 ${prevName} 的基础上补充或反驳。必须围绕用户刚才说的话，不要跑题。\n`
         } else {
@@ -1259,8 +1261,9 @@ const runGuestConversation = async (data) => {
     isPaused.value = false
     stopFlag.value = false
 
+    // 🔥 修复1：如果对面派来的人（data.visitorId），本页刚好也有，就把本页的这个角色过滤掉，防止“我聊我自己”
     const localGreeters = [...characters.value]
-      .filter(c => c.id !== 'mo')
+      .filter(c => c.id !== 'mo' && c.id !== data.visitorId)
       .sort(() => Math.random() - 0.5)
       .slice(0, 3)
 
@@ -1293,24 +1296,25 @@ const runGuestConversation = async (data) => {
       typingId.value = ''
       await sleep(1200)
 
-      typingId.value = 'che' 
-      currentSpeakerId.value = 'che'
+      typingId.value = 'visitor' 
+      currentSpeakerId.value = ''
       isVisitorTyping.value = true
 
       let promptVisitor = round === 0 
         ? `你是访客"${data.visitorName}"，请回应对方的欢迎，并简单介绍你们那边的话题。`
         : `你是访客"${data.visitorName}"，请针对对方刚才的话接茬，可以反驳、赞同或补充，20-60字。`
 
-      const r2 = await callAI('che', history, currentScenario.value.name, { extraContext: promptVisitor })
+      // 🔥 修复2：用访客真实的 ID 去调用，而不是写死 'che'
+      const r2 = await callAI(data.visitorId || 'che', history, currentScenario.value.name, { extraContext: promptVisitor })
       if (r2.ok) {
         messages.value.push({ 
-          speaker: 'che', 
-          content: r2.content, 
-          time: nowTime(), 
-          isVisitor: true,
+          speaker: 'visitor', // 🔥 修复3：用独立的标识
           speakerName: data.visitorName,
           speakerColor: data.visitorColor,
-          speakerAvatar: data.visitorAvatar
+          speakerAvatar: data.visitorAvatar,
+          content: r2.content, 
+          time: nowTime(), 
+          isVisitor: true 
         })
         history.push({ role: 'user', content: `${data.visitorName}：${r2.content}` })
         apiCallCount.value++
@@ -1466,11 +1470,12 @@ const visitNeighbor = () => {
     time: nowTime()
   })
 
-  const recentMsgs = messages.value.slice(-5).map(m => `${getName(m.speaker)}: ${m.content}`).join('\n')
+  const recentMsgs = messages.value.slice(-5).map(m => `${m.isVisitor ? m.speakerName : getName(m.speaker)}: ${m.content}`).join('\n')
 
   channel.value.postMessage({
     type: 'visit',
     from: '另一个圆桌的朋友',
+    visitorId: envoy.id, // 🔥 新增：带上真实 ID 防止串号
     visitorName: envoy.name,
     visitorColor: envoy.color,
     visitorAvatar: envoy.avatar,
@@ -1491,7 +1496,7 @@ const saveHistory = () => {
     count: realMessages.length,
     preview: realMessages
       .slice(0, 3)
-      .map(m => `[${getName(m.speaker)}] ${m.content}`)
+      .map(m => `[${m.isVisitor ? m.speakerName : getName(m.speaker)}] ${m.content}`)
       .join(' / ')
       .slice(0, 130) + '…',
     time: new Date().toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }),
@@ -1789,7 +1794,7 @@ onUnmounted(() => {
   }
 }
 
-/* 聊天抽屉：半透明玻璃效果 */
+/* 聊天抽屉：半透明磨砂玻璃 */
 .chat-drawer { 
   position: absolute; 
   left: 50%; 
