@@ -630,6 +630,7 @@ const startDiscussion = async () => {
         if (stopFlag.value) break; const charId = speakers[i], char = getChar(charId); let extra = currentMode.value.prompt ? `${currentMode.value.prompt}\n` : ''
         if (currentModeKey.value === 'mystery') extra += `【你的绝密档案】你的角色是【${char.scriptRole}】。${char.scriptSecret}\n【任务】隐藏秘密，配合DM推进游戏。`
         
+        // 🌌 心理树洞专属拦截：禁止 AI 互相回应
         if (currentModeKey.value === 'psychology') {
           extra += `【注意】保持温柔，直接对用户（屏幕前的使用者）说话。不要对别的 AI 接茬。\n`
         } else {
@@ -668,6 +669,7 @@ const userSpeak = async () => {
     for (let i = 0; i < resp.length; i++) {
       const r = resp[i]; let extra = currentMode.value.prompt ? `${currentMode.value.prompt}\n` : ''
       
+      // 🌌 心理树洞专属拦截：强制忽略其他 AI，只盯着用户
       if (currentModeKey.value === 'psychology') {
         extra += `【当前情况】使用者对你倾诉："${txt}"。请完全忽略其他 AI，直接温柔地安抚和陪伴使用者。\n`
       } else {
