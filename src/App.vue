@@ -1,4 +1,5 @@
 <template>
+  <Analytics />
   <div class="app" @mousemove="onMousemove" @mouseup="onDragEnd" @mouseleave="onDragEnd" @dblclick="onDoubleClick" @click="onClick">
     <div class="scene-bg" :style="{ backgroundImage: `url(${currentScenario.bgImage})` }"></div>
     <div class="scene-veil" :class="ambienceMode"></div>
@@ -411,6 +412,7 @@
 </template>
 
 <script setup>
+import { Analytics } from '@vercel/analytics/vue'
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { callAI, generateSummary } from '@/api/ai.js'
 import { scriptDataTemplates } from '@/data/scripts.js'
@@ -440,7 +442,7 @@ const panelTitles = {
 }
 
 const scenarios = {
-  cafe: { name: '深夜咖啡馆', icon: '☕', bgImage: cafeBg, accent: '#FFB6C1', accent2: '#FFD93D', keywords: ['情感','感情','喜欢','恋爱','失恋','朋友','孤独','心事','关系','分手','告白','想念','暗恋','焦虑','难过','开心','累'], topics: ['暗恋该不该表白？','异地恋能坚持吗？','友情和爱情怎么选？','分手后还能做朋友吗？','如何走出失恋？'] },
+  cafe: { name: '深��咖啡馆', icon: '☕', bgImage: cafeBg, accent: '#FFB6C1', accent2: '#FFD93D', keywords: ['情感','感情','喜欢','恋爱','失恋','朋友','孤独','心事','关系','分手','告白','想念','暗恋','焦虑','难过','开心','累'], topics: ['暗恋该不该表白？','异地恋能坚持吗？','友情和爱情怎么选？','分手后还能做朋友吗？','如何走出失恋？'] },
   campus: { name: '校园图书馆', icon: '📚', bgImage: campusBg, accent: '#4A90D9', accent2: '#6BCB77', keywords: ['学习','考试','作业','大学','考研','专业','成绩','毕业','论文','熬夜','早八','室友'], topics: ['大学生该不该熬夜？','考研还是就业？','大学该不该谈恋爱？','室友关系怎么处理？','该不该转专业？'] },
   cyber: { name: '赛博实验室', icon: '🌃', bgImage: cyberBg, accent: '#9B59B6', accent2: '#00d4ff', keywords: ['AI','人工智能','科技','未来','机器人','元宇宙','数据','算法','赛博','数字','编程','互联网'], topics: ['AI 会取代人类吗？','元宇宙是泡沫吗？','该不该学编程？','ChatGPT 改变了什么？'] },
   rooftop: { name: '城市天台', icon: '🏙️', bgImage: rooftopBg, accent: '#FFD93D', accent2: '#FF6B6B', keywords: ['生活','社会','工作','梦想','焦虑','内卷','压力','人生','现实','迷茫','躺平','内耗','意义'], topics: ['内卷时代该躺平吗？','工作的意义是什么？','如何面对焦虑？','大城市的孤独感'] },
@@ -674,7 +676,7 @@ const userSpeak = async () => {
         extra += `【当前情况】使用者对你倾诉："${txt}"。请完全忽略其他 AI，直接温柔地安抚和陪伴使用者。\n`
       } else {
         if (i === 0) extra += `【当前情况】用户说："${txt}"。你是第一个回应的。必须直接回应。\n`
-        else { const prev = getPrevAIMessage(); if (prev && prev.speaker !== 'user') extra += `【上一位回应者】"${getName(prev.speaker)}"说：\n"${prev.content}"\n【任务】补充或反驳。\n`; else extra += `【任务】用户说："${txt}"。请回应。\n` }
+        else { const prev = getPrevAIMessage(); if (prev && prev.speaker !== 'user') extra += `【上一位回应者】"${getName(prev.speaker)}"说：\n"${prev.content}"\n【任务】补充或反驳。\n`; else extra += `【���务】用户说："${txt}"。请回应。\n` }
       }
 
       if (currentModeKey.value === 'normal') extra += `${pickStance().desc}\n${pickAngle()}\n`
