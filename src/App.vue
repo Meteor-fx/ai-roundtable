@@ -408,10 +408,12 @@
       </div>
     </div>
   </div>
+  <Analytics />
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { Analytics } from '@vercel/analytics/vue'
 import { callAI, generateSummary } from '@/api/ai.js'
 import { scriptDataTemplates } from '@/data/scripts.js'
 
@@ -441,7 +443,7 @@ const panelTitles = {
 
 const scenarios = {
   cafe: { name: '深夜咖啡馆', icon: '☕', bgImage: cafeBg, accent: '#FFB6C1', accent2: '#FFD93D', keywords: ['情感','感情','喜欢','恋爱','失恋','朋友','孤独','心事','关系','分手','告白','想念','暗恋','焦虑','难过','开心','累'], topics: ['暗恋该不该表白？','异地恋能坚持吗？','友情和爱情怎么选？','分手后还能做朋友吗？','如何走出失恋？'] },
-  campus: { name: '校园图书馆', icon: '📚', bgImage: campusBg, accent: '#4A90D9', accent2: '#6BCB77', keywords: ['学习','考试','作业','大学','考研','专业','成绩','毕业','论文','熬夜','早八','室友'], topics: ['大学生该不该熬夜？','考研还是就业？','大学该不该谈恋爱？','室友关系怎么处理？','该不该转专业？'] },
+  campus: { name: '校园图书馆', icon: '📚', bgImage: campusBg, accent: '#4A90D9', accent2: '#6BCB77', keywords: ['学习','考试','作业','大学','考研','专业','成绩','毕业','论文','熬夜','早八','室友'], topics: ['大学生该不该熬夜？','考研还是就业？','大学该���该谈恋爱？','室友关系怎么处理？','该不该转专业？'] },
   cyber: { name: '赛博实验室', icon: '🌃', bgImage: cyberBg, accent: '#9B59B6', accent2: '#00d4ff', keywords: ['AI','人工智能','科技','未来','机器人','元宇宙','数据','算法','赛博','数字','编程','互联网'], topics: ['AI 会取代人类吗？','元宇宙是泡沫吗？','该不该学编程？','ChatGPT 改变了什么？'] },
   rooftop: { name: '城市天台', icon: '🏙️', bgImage: rooftopBg, accent: '#FFD93D', accent2: '#FF6B6B', keywords: ['生活','社会','工作','梦想','焦虑','内卷','压力','人生','现实','迷茫','躺平','内耗','意义'], topics: ['内卷时代该躺平吗？','工作的意义是什么？','如何面对焦虑？','大城市的孤独感'] },
   arcade: { name: '游戏公会', icon: '🎮', bgImage: arcadeBg, accent: '#FF6B6B', accent2: '#9B59B6', keywords: ['游戏','动漫','二次元','追剧','娱乐','电竞','主播','番剧','音乐','电影','刷剧','短视频'], topics: ['游戏是电子海洛因吗？','二次元文化出圈了吗？','追星该不该理智？','短视频让人变傻了吗？'] }
@@ -518,7 +520,7 @@ const showScriptModal = ref(false), selectedScriptIdx = ref(0), playerCount = re
 const visitingCharId = ref(null), incomingVisitor = ref(null), visitorBubble = ref('')
 const dragState = reactive({ id: null, lastX: 0, lastY: 0, vx: 0, vy: 0 }), droppedItems = ref([]), foodEmojis = ['☕', '🍰', '🍎', '🎮', '📚', '🥤', '🍔', '🍩']
 let itemIdCounter = 0
-const discussPhase = computed(() => { if (!isDiscussing.value) return ''; if (currentRound.value <= 1) return '破冰阶段'; if (currentRound.value >= totalRounds.value) return '收尾阶段'; return `交锋中·第${currentRound.value}轮` })
+const discussPhase = computed(() => { if (!isDiscussing.value) return ''; if (currentRound.value <= 1) return '破���阶段'; if (currentRound.value >= totalRounds.value) return '收尾阶段'; return `交锋中·第${currentRound.value}轮` })
 const screenW = ref(window.innerWidth), screenH = ref(window.innerHeight), stageH = computed(() => screenH.value * 0.58)
 
 const getHomes = () => currentModeKey.value === 'psychology' ? { che: { x: 0.05, y: 0.92 }, man: { x: 0.20, y: 0.98 }, tiao: { x: 0.35, y: 0.95 }, dun: { x: 0.65, y: 0.95 }, shan: { x: 0.80, y: 0.98 }, mo: { x: 0.95, y: 0.92 } } : { che: { x: 0.15, y: 0.30 }, man: { x: 0.80, y: 0.25 }, tiao: { x: 0.85, y: 0.45 }, dun: { x: 0.12, y: 0.45 }, shan: { x: 0.25, y: 0.38 }, mo: { x: 0.72, y: 0.38 } }
@@ -674,7 +676,7 @@ const userSpeak = async () => {
         extra += `【当前情况】使用者对你倾诉："${txt}"。请完全忽略其他 AI，直接温柔地安抚和陪伴使用者。\n`
       } else {
         if (i === 0) extra += `【当前情况】用户说："${txt}"。你是第一个回应的。必须直接回应。\n`
-        else { const prev = getPrevAIMessage(); if (prev && prev.speaker !== 'user') extra += `【上一位回应者】"${getName(prev.speaker)}"说：\n"${prev.content}"\n【任务】补充或反驳。\n`; else extra += `【任务】用户说："${txt}"。请回应。\n` }
+        else { const prev = getPrevAIMessage(); if (prev && prev.speaker !== 'user') extra += `【上一位回应者】"${getName(prev.speaker)}"说：\n"${prev.content}"\n【任务】补充或反驳。\n`; else extra += `【���务】用户说："${txt}"。请回应。\n` }
       }
 
       if (currentModeKey.value === 'normal') extra += `${pickStance().desc}\n${pickAngle()}\n`
